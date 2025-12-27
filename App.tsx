@@ -5,10 +5,6 @@ import { BusinessSchedule } from './types';
 import { NotificationService } from './services/notificationService';
 import { ScheduleActionDialog } from './components/ScheduleActionDialog';
 import { GlobalSettingsDialog } from './components/GlobalSettingsDialog';
-import { DatePicker } from './components/DatePicker';
-import { ErrorBoundary } from './components/ErrorBoundary';
-import ZoomableTimeline from './components/ZoomableTimeline';
-import { useSchedules } from './hooks/useSchedules';
 import { 
   Calendar, 
   CheckCircle2, 
@@ -21,9 +17,7 @@ import {
   Trash2,
   Download,
   BellOff,
-  CalendarOff,
-  List,
-  LayoutGrid
+  CalendarOff
 } from 'lucide-react';
 
 const SwipeableScheduleItem: React.FC<{
@@ -125,15 +119,8 @@ const SwipeableScheduleItem: React.FC<{
   );
 };
 
-type ViewMode = 'list' | 'timeline';
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
-
 const App: React.FC = () => {
-  const { schedules, isLoading, addSchedule, updateSchedule, deleteSchedule } = useSchedules();
+  const [schedules, setSchedules] = useState<BusinessSchedule[]>([]);
   const [notificationService] = useState(() => new NotificationService());
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const [isGlobalNotificationEnabled, setIsGlobalNotificationEnabled] = useState(true);
@@ -142,13 +129,7 @@ const App: React.FC = () => {
   const [globalVibration, setGlobalVibration] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<BusinessSchedule | null>(null);
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date>(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return today;
-  });
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
     if (isGlobalNotificationEnabled && notificationPermission === 'granted') {
@@ -168,11 +149,26 @@ const App: React.FC = () => {
     };
     initApp();
 
-    const handleBeforeInstallPrompt = (e: Event) => {
+    const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      setDeferredPrompt(e);
     };
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    
+    // 초기 예시 데이터
+    const today = new Date();
+    setSchedules([{
+      id: uuidv4(),
+      title: "비즈니스 주간 리포트 미팅",
+      date: today,
+      startTime: new Date(new Date(today).setHours(9, 0, 0, 0)),
+      endTime: new Date(new Date(today).setHours(10, 0, 0, 0)),
+      isReminded: true,
+      remindBeforeMinutes: 15,
+      enableSound: true,
+      enablePopup: true,
+      enableVibration: true
+    }]);
 
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, []);
@@ -185,62 +181,46 @@ const App: React.FC = () => {
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
-    await deferredPrompt.prompt();
+    deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === 'accepted') setDeferredPrompt(null);
   };
 
-  // Filter schedules by selected date
-  const filteredSchedules = useMemo(() => {
-    return schedules.filter(schedule => {
-      const scheduleDate = new Date(schedule.date);
-      scheduleDate.setHours(0, 0, 0, 0);
-      return scheduleDate.getTime() === selectedDate.getTime();
-    });
-  }, [schedules, selectedDate]);
-
   const scheduledItems = useMemo(() => {
-    return filteredSchedules
+    return schedules
       .filter(s => s.startTime !== null)
       .sort((a, b) => new Date(a.startTime!).getTime() - new Date(b.startTime!).getTime());
-  }, [filteredSchedules]);
+  }, [schedules]);
 
   const undecidedItems = useMemo(() => {
-    return filteredSchedules.filter(s => s.startTime === null);
-  }, [filteredSchedules]);
+    return schedules.filter(s => s.startTime === null);
+  }, [schedules]);
 
   const handleSaveSchedule = (updated: BusinessSchedule) => {
-    const exists = schedules.find(s => s.id === updated.id);
-    if (exists) {
-      updateSchedule(updated);
-    } else {
-      addSchedule(updated);
-    }
+    setSchedules(prev => {
+      const exists = prev.find(s => s.id === updated.id);
+      return exists ? prev.map(s => s.id === updated.id ? updated : s) : [...prev, updated];
+    });
     setLastMessage(updated.startTime === null ? "보류함에 저장되었습니다." : "일정이 동기화되었습니다.");
     setTimeout(() => setLastMessage(null), 3000);
     setEditingSchedule(null);
   };
 
   const handleScheduleDelete = (id: string) => {
-    deleteSchedule(id);
+    setSchedules(prev => prev.filter(s => s.id !== id));
     setLastMessage("일정이 삭제되었습니다.");
     setTimeout(() => setLastMessage(null), 3000);
     setEditingSchedule(null);
   };
 
-
   const handleAddNew = () => {
     const now = new Date();
-    const startTime = new Date(selectedDate);
-    startTime.setHours(now.getHours(), Math.ceil(now.getMinutes() / 10) * 10, 0, 0);
-    const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
-    
     setEditingSchedule({
       id: uuidv4(),
       title: "",
-      date: selectedDate,
-      startTime: startTime,
-      endTime: endTime, 
+      date: now,
+      startTime: new Date(new Date(now).setMinutes(0, 0, 0)),
+      endTime: new Date(new Date(now).getTime() + 60 * 60 * 1000), 
       isReminded: true,
       remindBeforeMinutes: 10,
       enableSound: globalSound,
@@ -250,8 +230,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <ErrorBoundary>
-      <div className="flex flex-col h-screen bg-slate-50 font-sans text-slate-800 overflow-x-hidden">
+    <div className="flex flex-col h-screen bg-slate-50 font-sans text-slate-800 overflow-x-hidden">
       <header className="bg-white border-b border-slate-200 px-6 py-5 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <div className="bg-blue-600 text-white p-2.5 rounded-2xl shadow-lg shadow-blue-100">
@@ -299,109 +278,37 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Date Picker */}
-      <div className="px-6 py-4 bg-white border-b border-slate-100">
-        <DatePicker selectedDate={selectedDate} onDateChange={setSelectedDate} />
-      </div>
+      <main className="flex-1 overflow-y-auto pt-8 pb-20 no-scrollbar">
+        <div className="max-w-4xl mx-auto space-y-12">
+          <section className="space-y-5">
+            <div className="px-6 flex items-center justify-between">
+              <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><Clock size={14} className="text-blue-500" /> 오늘 일정 ({scheduledItems.length})</h2>
+            </div>
+            <div className="flex flex-col">
+              {scheduledItems.length > 0 ? (
+                scheduledItems.map(s => <SwipeableScheduleItem key={s.id} schedule={s} onOpenDetail={setEditingSchedule} onDelete={handleScheduleDelete} />)
+              ) : (
+                <div className="px-6 py-10 text-center border-2 border-dashed border-slate-100 rounded-[2.5rem] mx-6">
+                  <p className="text-slate-300 font-bold text-sm">등록된 일정이 없습니다.</p>
+                </div>
+              )}
+            </div>
+          </section>
 
-      {/* View Mode Switcher */}
-      <div className="px-6 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">보기 모드</span>
+          <section className="space-y-5">
+            <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest px-6 flex items-center gap-2"><AlertCircle size={14} className="text-amber-500" /> 보류됨 ({undecidedItems.length})</h2>
+            <div className="flex flex-col">
+              {undecidedItems.length > 0 ? (
+                undecidedItems.map(s => <SwipeableScheduleItem key={s.id} schedule={s} onOpenDetail={setEditingSchedule} onDelete={handleScheduleDelete} />)
+              ) : (
+                <div className="px-6 py-10 text-center border-2 border-dashed border-slate-100 rounded-[2.5rem] mx-6">
+                  <p className="text-slate-300 font-bold text-sm">보류된 일정이 없습니다.</p>
+                </div>
+              )}
+            </div>
+          </section>
         </div>
-        <div className="flex gap-2 bg-white rounded-xl p-1 border border-slate-200">
-          <button
-            onClick={() => setViewMode('list')}
-            className={`px-4 py-2 rounded-lg text-xs font-black transition-all ${
-              viewMode === 'list' 
-                ? 'bg-blue-600 text-white shadow-sm' 
-                : 'text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            <List size={16} className="inline mr-1.5" />
-            목록
-          </button>
-          <button
-            onClick={() => setViewMode('timeline')}
-            className={`px-4 py-2 rounded-lg text-xs font-black transition-all ${
-              viewMode === 'timeline' 
-                ? 'bg-blue-600 text-white shadow-sm' 
-                : 'text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            <LayoutGrid size={16} className="inline mr-1.5" />
-            타임라인
-          </button>
-        </div>
-      </div>
-
-      {isLoading ? (
-        <main className="flex-1 flex items-center justify-center">
-          <div className="text-slate-400 font-bold">로딩 중...</div>
-        </main>
-      ) : viewMode === 'timeline' ? (
-        <main className="flex-1 overflow-hidden">
-          <ZoomableTimeline
-            schedules={filteredSchedules}
-            onScheduleUpdate={updateSchedule}
-            onAddSchedule={(date) => {
-              const newSchedule: BusinessSchedule = {
-                id: uuidv4(),
-                title: "",
-                date: selectedDate,
-                startTime: date,
-                endTime: new Date(date.getTime() + 60 * 60 * 1000),
-                isReminded: true,
-                remindBeforeMinutes: 10,
-                enableSound: globalSound,
-                enablePopup: true,
-                enableVibration: globalVibration
-              };
-              setEditingSchedule(newSchedule);
-            }}
-            onLongPressSchedule={setEditingSchedule}
-            onCardTap={setEditingSchedule}
-          />
-        </main>
-      ) : (
-        <main className="flex-1 overflow-y-auto pt-8 pb-20 no-scrollbar">
-          <div className="max-w-4xl mx-auto space-y-12">
-            <section className="space-y-5">
-              <div className="px-6 flex items-center justify-between">
-                <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <Clock size={14} className="text-blue-500" /> 
-                  일정 ({scheduledItems.length})
-                </h2>
-              </div>
-              <div className="flex flex-col">
-                {scheduledItems.length > 0 ? (
-                  scheduledItems.map(s => <SwipeableScheduleItem key={s.id} schedule={s} onOpenDetail={setEditingSchedule} onDelete={handleScheduleDelete} />)
-                ) : (
-                  <div className="px-6 py-10 text-center border-2 border-dashed border-slate-100 rounded-[2.5rem] mx-6">
-                    <p className="text-slate-300 font-bold text-sm">등록된 일정이 없습니다.</p>
-                  </div>
-                )}
-              </div>
-            </section>
-
-            <section className="space-y-5">
-              <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest px-6 flex items-center gap-2">
-                <AlertCircle size={14} className="text-amber-500" /> 
-                보류됨 ({undecidedItems.length})
-              </h2>
-              <div className="flex flex-col">
-                {undecidedItems.length > 0 ? (
-                  undecidedItems.map(s => <SwipeableScheduleItem key={s.id} schedule={s} onOpenDetail={setEditingSchedule} onDelete={handleScheduleDelete} />)
-                ) : (
-                  <div className="px-6 py-10 text-center border-2 border-dashed border-slate-100 rounded-[2.5rem] mx-6">
-                    <p className="text-slate-300 font-bold text-sm">보류된 일정이 없습니다.</p>
-                  </div>
-                )}
-              </div>
-            </section>
-          </div>
-        </main>
-      )}
+      </main>
 
       {editingSchedule && (
         <ScheduleActionDialog 
@@ -425,8 +332,7 @@ const App: React.FC = () => {
             }
         }}
       />
-      </div>
-    </ErrorBoundary>
+    </div>
   );
 };
 

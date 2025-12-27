@@ -149,29 +149,6 @@ export const ScheduleActionDialog: React.FC<Props> = ({
                 </label>
               </div>
 
-              {form.isReminded && (
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                    <Clock size={12} className="text-orange-500" /> 알림 시간 (분 전)
-                  </label>
-                  <input 
-                    type="number"
-                    min="1"
-                    max="1440"
-                    value={form.remindBeforeMinutes}
-                    onChange={e => {
-                      const value = parseInt(e.target.value, 10);
-                      if (!isNaN(value) && value > 0) {
-                        updateField('remindBeforeMinutes', Math.min(1440, Math.max(1, value)));
-                      }
-                    }}
-                    className="w-full bg-slate-50 p-4 rounded-2xl border border-slate-200 text-sm font-bold focus:ring-2 focus:ring-orange-100 outline-none"
-                    placeholder="10"
-                  />
-                  <p className="text-[9px] font-bold text-slate-400 px-1">일정 시작 전 몇 분에 알림을 받을지 설정하세요.</p>
-                </div>
-              )}
-
               <div className="flex items-center gap-2 justify-center py-1">
                 <button onClick={() => updateField('enableSound', !form.enableSound)} className={`px-3 py-2 rounded-full border text-[9px] font-black uppercase flex items-center gap-1.5 transition-all ${form.enableSound ? 'border-green-200 bg-green-50 text-green-700' : 'border-slate-100 bg-slate-50 text-slate-300'}`}>
                   <Volume2 size={10}/> 기기 기본음

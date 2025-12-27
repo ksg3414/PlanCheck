@@ -1,11 +1,11 @@
 
-const CACHE_NAME = 'plancheck-v12';
-const OFFLINE_URL = 'index.html';
+const CACHE_NAME = 'plancheck-v13';
+const OFFLINE_URL = './index.html';
 
 const ASSETS = [
   './',
-  'index.html',
-  'manifest.json',
+  './index.html',
+  './manifest.json',
   'https://cdn.tailwindcss.com'
 ];
 

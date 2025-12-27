@@ -5,8 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     
-    <!-- PWABuilder 및 브라우저 인식률을 높이기 위해 경로에서 ./를 제거합니다 -->
-    <link rel="manifest" href="manifest.json" />
+    <link rel="manifest" href="./manifest.json" />
     
     <meta name="description" content="Professional business scheduling and timeline management application for high-productivity environments." />
     <meta name="theme-color" content="#2563eb" />
@@ -45,8 +44,8 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          // 서비스 워커 등록 경로도 정규화
-          navigator.serviceWorker.register('sw.js', { scope: './' })
+          // 서비스 워커 등록 시 ./sw.js를 사용하여 서브디렉토리 경로를 명확히 함
+          navigator.serviceWorker.register('./sw.js', { scope: './' })
             .then(reg => console.log('PWA SW Registered:', reg.scope))
             .catch(err => console.error('PWA SW Error', err));
         });

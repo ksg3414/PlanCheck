@@ -6,7 +6,7 @@
   "description": "A professional business scheduling application with zoomable timeline and smart system-integrated notifications.",
   "lang": "ko-KR",
   "dir": "ltr",
-  "start_url": "index.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "minimal-ui"],

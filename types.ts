@@ -4,12 +4,6 @@ export enum ScheduleStatus {
   Undecided = 'Undecided'
 }
 
-export enum CommandType {
-  Add = 'Add',
-  Delete = 'Delete',
-  Modify = 'Modify'
-}
-
 export interface BusinessSchedule {
   id: string;
   title: string;

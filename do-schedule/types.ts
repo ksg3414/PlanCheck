@@ -4,7 +4,6 @@ export enum ScheduleStatus {
   Undecided = 'Undecided'
 }
 
-// Added CommandType enum to resolve errors in services/voiceService.ts and components/VoiceControl.tsx
 export enum CommandType {
   Add = 'Add',
   Delete = 'Delete',
@@ -15,14 +14,13 @@ export interface BusinessSchedule {
   id: string;
   title: string;
   date: Date;
-  startTime: Date | null; // null if Undecided
+  startTime: Date | null; 
   endTime: Date | null;
   isReminded: boolean;
   remindBeforeMinutes: number;
   
   // Notification Settings
   enableVibration: boolean;
-  enableSound: boolean;
+  enableSound: boolean; // true일 경우 시스템 기본 알림음 재생
   enablePopup: boolean;
-  soundFileName: string;
 }

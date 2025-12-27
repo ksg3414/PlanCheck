@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { BusinessSchedule } from './types';
@@ -15,11 +16,10 @@ import {
   Settings,
   Trash2,
   Download,
-  ShieldAlert,
-  BellOff
+  BellOff,
+  CalendarOff
 } from 'lucide-react';
 
-// Swipeable Item Component
 const SwipeableScheduleItem: React.FC<{
   schedule: BusinessSchedule;
   onOpenDetail: (s: BusinessSchedule) => void;
@@ -62,6 +62,7 @@ const SwipeableScheduleItem: React.FC<{
 
   const progress = Math.min(offsetX / maxSwipe, 1);
   const isAtLimit = progress >= 0.95;
+  const isUndecided = schedule.startTime === null;
   
   return (
     <div className="relative overflow-hidden ml-6 mb-4 select-none">
@@ -83,13 +84,17 @@ const SwipeableScheduleItem: React.FC<{
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         style={{ transform: `translateX(${offsetX}px)` }}
-        className="bg-white border-y border-l border-slate-100 p-5 pl-7 rounded-l-[2.5rem] shadow-[-8px_8px_20px_rgba(0,0,0,0.02)] transition-transform duration-100 ease-out cursor-grab active:cursor-grabbing flex items-center gap-3 relative z-10 touch-none"
+        className={`bg-white border-y border-l border-slate-100 p-5 pl-7 rounded-l-[2.5rem] shadow-[-8px_8px_20px_rgba(0,0,0,0.02)] transition-transform duration-100 ease-out cursor-grab active:cursor-grabbing flex items-center gap-3 relative z-10 touch-none ${isUndecided ? 'border-l-amber-200' : 'border-l-blue-100'}`}
       >
         <div className="flex flex-col items-center justify-center min-w-[65px] border-r border-slate-100 pr-3 shrink-0 pointer-events-none">
-          <span className="text-sm font-black text-blue-600">
-            {schedule.startTime ? new Date(schedule.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false}) : "--:--"}
-          </span>
-          <span className="text-[9px] font-black text-slate-300 mt-0.5 uppercase tracking-tighter">START</span>
+          {isUndecided ? (
+            <CalendarOff size={20} className="text-amber-400" />
+          ) : (
+            <span className="text-sm font-black text-blue-600">
+              {new Date(schedule.startTime!).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false})}
+            </span>
+          )}
+          <span className="text-[9px] font-black text-slate-300 mt-0.5 uppercase tracking-tighter">{isUndecided ? "HOLD" : "START"}</span>
         </div>
         
         <div className="flex-1 min-w-0 pointer-events-none">
@@ -98,10 +103,14 @@ const SwipeableScheduleItem: React.FC<{
             <div className="flex items-center gap-1 text-[11px] font-bold text-slate-400">
               <Clock size={12} />
               <span>
-                {schedule.startTime ? new Date(schedule.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false}) : ""} - {schedule.endTime ? new Date(schedule.endTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false}) : ""}
+                {isUndecided ? "시간 미정" : `${new Date(schedule.startTime!).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false})} - ${new Date(schedule.endTime!).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false})}`}
               </span>
             </div>
-            {schedule.isReminded && <div className="bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tight shrink-0"><Bell size={10} /> {schedule.remindBeforeMinutes}M</div>}
+            {schedule.isReminded && !isUndecided && (
+              <div className="bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tight shrink-0">
+                <Bell size={10} /> {schedule.remindBeforeMinutes}M
+              </div>
+            )}
           </div>
         </div>
         <ChevronRight size={18} className="text-slate-200" />
@@ -121,9 +130,7 @@ const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<BusinessSchedule | null>(null);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isAudioInitialized, setIsAudioInitialized] = useState(false);
 
-  // 알림 동기화 로직: 전역 설정이 꺼져있거나 권한이 없으면 타이머를 모두 비웁니다.
   useEffect(() => {
     if (isGlobalNotificationEnabled && notificationPermission === 'granted') {
       notificationService.syncAllSchedules(schedules);
@@ -133,7 +140,6 @@ const App: React.FC = () => {
   }, [schedules, isGlobalNotificationEnabled, notificationPermission, notificationService]);
 
   useEffect(() => {
-    // 앱 시작 즉시 권한 요청 팝업 시연
     const initApp = async () => {
       const permission = await notificationService.requestPermission();
       setNotificationPermission(permission);
@@ -155,14 +161,13 @@ const App: React.FC = () => {
       id: uuidv4(),
       title: "비즈니스 주간 리포트 미팅",
       date: today,
-      startTime: new Date(today.setHours(9, 0, 0, 0)),
-      endTime: new Date(today.setHours(10, 0, 0, 0)),
+      startTime: new Date(new Date(today).setHours(9, 0, 0, 0)),
+      endTime: new Date(new Date(today).setHours(10, 0, 0, 0)),
       isReminded: true,
       remindBeforeMinutes: 15,
       enableSound: true,
       enablePopup: true,
-      enableVibration: true,
-      soundFileName: 'alert.mp3'
+      enableVibration: true
     }]);
 
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -172,15 +177,6 @@ const App: React.FC = () => {
     const permission = await notificationService.requestPermission();
     setNotificationPermission(permission);
     if (permission === 'granted') setIsGlobalNotificationEnabled(true);
-    initAudioOnFirstClick();
-  };
-
-  const initAudioOnFirstClick = () => {
-    if (!isAudioInitialized) {
-      const audio = new Audio();
-      audio.play().catch(() => {});
-      setIsAudioInitialized(true);
-    }
   };
 
   const handleInstallClick = async () => {
@@ -205,7 +201,7 @@ const App: React.FC = () => {
       const exists = prev.find(s => s.id === updated.id);
       return exists ? prev.map(s => s.id === updated.id ? updated : s) : [...prev, updated];
     });
-    setLastMessage("일정이 동기화되었습니다.");
+    setLastMessage(updated.startTime === null ? "보류함에 저장되었습니다." : "일정이 동기화되었습니다.");
     setTimeout(() => setLastMessage(null), 3000);
     setEditingSchedule(null);
   };
@@ -218,50 +214,51 @@ const App: React.FC = () => {
   };
 
   const handleAddNew = () => {
-    initAudioOnFirstClick();
     const now = new Date();
     setEditingSchedule({
       id: uuidv4(),
       title: "",
       date: now,
-      startTime: new Date(now.setMinutes(0, 0, 0)),
-      endTime: new Date(now.getTime() + 60 * 60 * 1000), 
+      startTime: new Date(new Date(now).setMinutes(0, 0, 0)),
+      endTime: new Date(new Date(now).getTime() + 60 * 60 * 1000), 
       isReminded: true,
       remindBeforeMinutes: 10,
       enableSound: globalSound,
       enablePopup: true,
-      enableVibration: globalVibration,
-      soundFileName: 'default.mp3'
+      enableVibration: globalVibration
     });
   };
 
   return (
-    <div 
-      className="flex flex-col h-screen bg-slate-50 font-sans text-slate-800 overflow-x-hidden"
-      onClick={initAudioOnFirstClick}
-    >
+    <div className="flex flex-col h-screen bg-slate-50 font-sans text-slate-800 overflow-x-hidden">
       <header className="bg-white border-b border-slate-200 px-6 py-5 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <div className="bg-blue-600 text-white p-2.5 rounded-2xl shadow-lg shadow-blue-100">
             <Calendar size={24} />
           </div>
           <div>
-            <h1 className="text-xl font-black tracking-tight text-slate-900 leading-none">Do-Schedule</h1>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Management Pro</p>
+            <h1 className="text-xl font-black tracking-tight text-slate-900 leading-none">PlanCheck</h1>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Professional Scheduler</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           {deferredPrompt && (
             <button onClick={handleInstallClick} className="p-3 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all flex items-center gap-2">
-              <Download size={20} />
+              <Download size={18} />
               <span className="hidden md:inline text-xs font-black">앱 설치</span>
             </button>
           )}
           <button onClick={() => setIsSettingsOpen(true)} className="p-3 text-slate-400 hover:text-slate-600 rounded-xl transition-colors">
-            <Settings size={24} />
+            <Settings size={22} />
           </button>
-          <button onClick={handleAddNew} className="flex items-center gap-2 bg-slate-900 text-white px-5 py-3 rounded-2xl font-black text-sm shadow-xl shadow-slate-200"><Plus size={18} /> 추가</button>
+          <button 
+            onClick={handleAddNew} 
+            className="flex items-center justify-center gap-1.5 bg-slate-900 text-white px-4 py-2.5 rounded-xl font-black text-sm shadow-lg shadow-slate-200 whitespace-nowrap transition-transform active:scale-95"
+          >
+            <Plus size={16} /> 
+            <span>추가</span>
+          </button>
         </div>
       </header>
 
@@ -299,9 +296,15 @@ const App: React.FC = () => {
           </section>
 
           <section className="space-y-5">
-            <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest px-6 flex items-center gap-2"><AlertCircle size={14} /> 보류됨 ({undecidedItems.length})</h2>
+            <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest px-6 flex items-center gap-2"><AlertCircle size={14} className="text-amber-500" /> 보류됨 ({undecidedItems.length})</h2>
             <div className="flex flex-col">
-              {undecidedItems.map(s => <SwipeableScheduleItem key={s.id} schedule={s} onOpenDetail={setEditingSchedule} onDelete={handleScheduleDelete} />)}
+              {undecidedItems.length > 0 ? (
+                undecidedItems.map(s => <SwipeableScheduleItem key={s.id} schedule={s} onOpenDetail={setEditingSchedule} onDelete={handleScheduleDelete} />)
+              ) : (
+                <div className="px-6 py-10 text-center border-2 border-dashed border-slate-100 rounded-[2.5rem] mx-6">
+                  <p className="text-slate-300 font-bold text-sm">보류된 일정이 없습니다.</p>
+                </div>
+              )}
             </div>
           </section>
         </div>
